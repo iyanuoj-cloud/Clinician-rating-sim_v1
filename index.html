@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rate the baby’s breathing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#eef2f2; --surface:#ffffff; --ink:#15262b; --muted:#566b71; --line:#cbd7d9; --accent:#176b78;
+  --scene:#dfe9eb; --mattress:#b9d0d6; --rail:#a8bec5; --seesaw:#7a58c9;
+  --g:#3fae5a; --y:#e8b923; --r:#d64545; --on-accent:#ffffff;
+  color-scheme:light;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1619; --surface:#16222a; --ink:#e5eef0; --muted:#94a9af; --line:#2a3b41; --accent:#62c3cf;
+    --scene:#1b2a30; --mattress:#2d4750; --rail:#3b5560; --seesaw:#a58cf0; --on-accent:#06191c;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1619; --surface:#16222a; --ink:#e5eef0; --muted:#94a9af; --line:#2a3b41; --accent:#62c3cf;
+  --scene:#1b2a30; --mattress:#2d4750; --rail:#3b5560; --seesaw:#a58cf0; --on-accent:#06191c;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px; line-height:1.45;
+}
+.wrap{max-width:860px;margin:0 auto;padding:16px 16px 40px}
+h1,h2,h3{margin:0;font-weight:700;line-height:1.2}
+h1{font-size:22px}
+h2{font-size:18px}
+p{margin:0 0 10px}
+.muted{color:var(--muted)}
+button,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.devbar{display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:12px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px}
+.devbar select{padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+
+.intro{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;margin-bottom:16px}
+.intro h2{margin-bottom:8px}
+.intro ul{margin:8px 0 14px;padding-left:20px}
+.intro li{margin:3px 0}
+.go{background:var(--accent);color:var(--on-accent);border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:17px;cursor:pointer}
+.go:disabled{opacity:.5;cursor:default}
+
+.dim{opacity:.4;pointer-events:none}
+.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.usual{font-size:17px}
+.usual b{font-size:26px;font-variant-numeric:tabular-nums;margin:0 6px}
+
+.stage{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--scene)}
+canvas{display:block;width:100%}
+#baby{aspect-ratio:630/150}
+.graph{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 10px 6px}
+.ghead{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:4px;flex-wrap:wrap}
+#clock{font-weight:700;font-variant-numeric:tabular-nums}
+#trace{height:208px}
+
+.rate{margin-top:16px}
+.rate h2{margin-bottom:8px}
+.btns{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.btn{
+  text-align:left;background:var(--surface);border:3px solid var(--c);border-radius:12px;
+  padding:12px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:104px;
+}
+.btn .lab{font-size:22px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.btn .cap{font-size:14px;color:var(--muted)}
+.btn[data-c="green"]{--c:var(--g)} .btn[data-c="yellow"]{--c:var(--y)} .btn[data-c="red"]{--c:var(--r)}
+.btn[aria-pressed="true"]{background:var(--c);color:#fff}
+.btn[data-c="yellow"][aria-pressed="true"]{color:#1a1500}
+.btn[aria-pressed="true"] .cap{color:inherit}
+.btn:disabled{opacity:.45;cursor:default}
+.btn .tick{visibility:hidden}
+.btn[aria-pressed="true"] .tick{visibility:visible}
+#current{margin:10px 0 0;font-size:15px;min-height:22px}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
+@media (max-width:560px){
+  .btns{grid-template-columns:1fr}
+  .btn{min-height:0;flex-direction:row;align-items:center;gap:14px}
+  .btn .lab{min-width:112px}
+}
+
+.panel{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.panel h2{margin-bottom:6px}
+.panel label{display:block;margin:10px 0 4px;font-size:15px}
+.panel textarea{width:100%;min-height:76px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);resize:vertical}
+.chk{display:flex!important;gap:8px;align-items:center}
+.chk input{width:18px;height:18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.alt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;cursor:pointer;font-weight:700}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}
+#json{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:130px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <div class="devbar" id="devbar" hidden>
+    <label for="preset">Test scenario</label>
+    <select id="preset"></select>
+    <span class="muted" id="presetDesc"></span>
+  </div>
+
+  <section class="intro" id="intro">
+    <h2>Rate this baby’s breathing</h2>
+    <p>You are the only nurse covering this ward tonight. This newborn is on low-flow oxygen through nasal prongs.</p>
+    <ul>
+      <li>There is no oximeter or heart rate monitor. Assume skin color is normal.</li>
+      <li>You will see the last 8 minutes of breathing, then 30 seconds live.</li>
+      <li>Pick the color that matches what you would do. You can change it at any time.</li>
+      <li>When time is up, confirm your final rating.</li>
+    </ul>
+    <button class="go" id="start">Start</button>
+  </section>
+
+  <div id="sim" class="dim">
+    <div class="top">
+      <h1>Cot 3</h1>
+      <div class="usual">Usual breathing rate<b id="baseNum">40</b>per minute</div>
+    </div>
+
+    <div class="stage"><canvas id="baby" aria-label="Animated newborn lying in a cot, breathing"></canvas></div>
+
+    <div class="graph">
+      <div class="ghead"><span>Breathing rate, last 8 minutes. Dashed line: usual rate.</span><span id="clock" aria-live="polite"></span></div>
+      <canvas id="trace" aria-label="Graph of breathing rate over the last 8 minutes"></canvas>
+    </div>
+
+    <section class="rate">
+      <h2>What would you do?</h2>
+      <div class="btns" role="group" aria-label="Rating">
+        <button class="btn" data-c="green" aria-pressed="false" disabled><span class="lab">Green<span class="tick" aria-hidden="true">✓</span></span><span class="cap">No concern. Routine checks continue.</span></button>
+        <button class="btn" data-c="yellow" aria-pressed="false" disabled><span class="lab">Yellow<span class="tick" aria-hidden="true">✓</span></span><span class="cap">Concerning. I’d want someone to look within about 15 minutes.</span></button>
+        <button class="btn" data-c="red" aria-pressed="false" disabled><span class="lab">Red<span class="tick" aria-hidden="true">✓</span></span><span class="cap">I’d go to this baby now.</span></button>
+      </div>
+      <p id="current" class="muted">Not yet rated.</p>
+      <p class="hint">Keys 1, 2 and 3 also work.</p>
+    </section>
+
+    <section class="panel" id="endpanel" hidden>
+      <h2>Time’s up</h2>
+      <p>Confirm your final rating. You can still change it above.</p>
+      <label class="chk"><input type="checkbox" id="unreal"> This didn’t look like a realistic baby</label>
+      <label for="comment">Comments (optional)</label>
+      <textarea id="comment"></textarea>
+      <div class="row"><button class="go" id="confirm" disabled>Confirm final rating</button></div>
+    </section>
+
+    <section class="panel" id="results" hidden>
+      <h2>Recorded</h2>
+      <p id="summary"></p>
+      <table id="log"><thead><tr><th>Live time</th><th>Rating</th><th>Rate on graph</th><th>See-saw</th></tr></thead><tbody></tbody></table>
+      <label for="json">Full record</label>
+      <textarea id="json" readonly></textarea>
+      <div class="row">
+        <button class="alt" id="copy">Copy record</button>
+        <button class="alt" id="again">Run this scenario again</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id);};
+var H_SPAN=480, STEP=0.025, SAMPLE=0.5, VERSION="v0.1";
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function smooth(x){x=clamp(x,0,1);return x*x*(3-2*x);}
+function ramp(t,t0,t1,a,b){return a+(b-a)*smooth((t-t0)/(t1-t0));}
+
+/* ---------- Scenarios (time in seconds relative to "now" = 0) ---------- */
+var SCENARIOS={
+  main:{label:"Elevated rate (68) with mild see-saw",baseline:40,seed:11,live:30,
+    rr:function(t){return ramp(t,-330,-240,40,68);},
+    off:function(t){return ramp(t,-120,-105,0,0.2);},
+    pauses:[],
+    desc:"Rate rose from 40 to 68 about 5 minutes ago. Mild see-saw began about 2 minutes ago."},
+  control:{label:"Control: stable, normal",baseline:40,seed:5,live:30,
+    rr:function(){return 41;}, off:function(){return 0;}, pauses:[],
+    desc:"Stable around 41, no see-saw, no pauses."},
+  pause20:{label:"One 20-second pause",baseline:40,seed:23,live:45,
+    rr:function(){return 44;}, off:function(){return 0;}, pauses:[{start:10,dur:20}],
+    desc:"Normal rate, then one 20 s pause starting 10 s into the live segment."},
+  lowsee:{label:"Low rate (22) with marked see-saw",baseline:40,seed:42,live:30,
+    rr:function(t){return ramp(t,-300,-210,40,22);},
+    off:function(t){return ramp(t,-45,-30,0,0.5);},
+    pauses:[],
+    desc:"Rate fell from 40 to 22 about 4 minutes ago. Marked see-saw began about 40 seconds ago."}
+};
+
+/* ---------- Breathing engine ---------- */
+function makeEngine(sc){
+  var rnd=mulberry32(sc.seed);
+  function randn(){var u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  var E={t:-H_SPAN,phase:0,period:1,held:false,blend:1,amp:1,wander:0,breaths:[],samples:[],nextSample:-H_SPAN};
+  function pauseAt(t){for(var i=0;i<sc.pauses.length;i++){var p=sc.pauses[i];if(t>=p.start&&t<p.start+p.dur+0.4)return true;}return false;}
+  function startBreath(){
+    E.breaths.push(E.t);
+    var rr=Math.max(8,sc.rr(E.t)+E.wander);
+    E.period=clamp(60/rr*(1+0.05*randn()),0.4,5);
+    E.amp=clamp((1.1-0.004*(sc.rr(E.t)-40))*(1+0.08*randn()),0.55,1.3);
+    E.phase=0;
+  }
+  /* Rolling ~10 s estimate; if no breath for a while, the estimate falls toward zero. */
+  function est(t){
+    var b=E.breaths,n=0,first=0,last=0;
+    for(var i=b.length-1;i>=0&&b[i]>t-10;i--){if(n===0)last=b[i];first=b[i];n++;}
+    var since=t-(b.length?b[b.length-1]:t-60),r;
+    if(n>=3)r=(n-1)/(last-first)*60;
+    else if(n===2)r=60/(last-first);
+    else r=60/Math.max(since,1.5);
+    if(since>Math.max(3,1.5*60/Math.max(r,1)))r=Math.min(r,60/since);
+    return r;
+  }
+  E.step=function(dt){
+    E.t+=dt;
+    var want=pauseAt(E.t);
+    E.wander+=(-E.wander/20)*dt+1.6*Math.sqrt(2*dt/20)*randn();
+    if(E.held){
+      if(!want){E.held=false;startBreath();}
+    }else{
+      /* if a pause is due, finish the breath in progress quickly, then hold still */
+      var adv=(want&&E.phase>0)?dt/0.45:dt/E.period;
+      E.phase+=adv;
+      if(E.phase>=1){
+        if(want){E.phase=0;E.held=true;}
+        else{startBreath();}
+      }
+    }
+    E.blend+=((E.held?0:1)-E.blend)*Math.min(1,dt*6);
+    while(E.t>=E.nextSample){
+      E.samples.push({t:E.nextSample,rr:est(E.t),off:sc.off(E.t),still:E.held});
+      E.nextSample+=SAMPLE;
+    }
+  };
+  startBreath();
+  var n=Math.round(H_SPAN/STEP);
+  for(var k=0;k<n;k++)E.step(STEP);
+  E.t=0; /* snap away tiny float drift */
+  return E;
+}
+
+/* ---------- State ---------- */
+var sc,E,mode,rating,events,acc,sessionStart,arrivalTimer,ratingSince;
+
+function reset(id){
+  sc=SCENARIOS[id]; E=makeEngine(sc);
+  mode="intro"; rating=null; events=[]; acc=0; ratingSince=null;
+  clearTimeout(arrivalTimer);
+  $("baseNum").textContent=sc.baseline;
+  $("intro").hidden=false; $("start").disabled=false;
+  $("sim").classList.add("dim");
+  $("endpanel").hidden=true; $("results").hidden=true;
+  $("unreal").checked=false; $("comment").value="";
+  setButtons(false); paintRating();
+  $("clock").textContent="";
+  $("presetDesc").textContent=sc.desc;
+}
+
+function setButtons(on){
+  var bs=document.querySelectorAll(".btn");
+  for(var i=0;i<bs.length;i++)bs[i].disabled=!on;
+}
+function paintRating(){
+  var bs=document.querySelectorAll(".btn");
+  for(var i=0;i<bs.length;i++)bs[i].setAttribute("aria-pressed",String(bs[i].getAttribute("data-c")===rating));
+  var cur=$("current");
+  if(!rating){cur.textContent="Not yet rated.";}
+  else{cur.textContent="Current rating: "+rating.charAt(0).toUpperCase()+rating.slice(1)+".";}
+  $("confirm").disabled=!(mode==="ended"&&rating);
+}
+
+function lastSample(){return E.samples[E.samples.length-1];}
+function snap(type,extra){
+  var s=lastSample(),o={type:type,live_s:+E.t.toFixed(1),wall:new Date().toISOString(),
+    rr_displayed:+s.rr.toFixed(1),rr_target:+sc.rr(E.t).toFixed(1),seesaw_offset:+sc.off(E.t).toFixed(2),baby_still:E.held};
+  if(extra)for(var k in extra)o[k]=extra[k];
+  return o;
+}
+
+function begin(){
+  if(mode!=="intro")return;
+  mode="arrival";
+  $("intro").hidden=true; $("sim").classList.remove("dim");
+  var n=3;
+  $("clock").textContent="Live starts in "+n;
+  function tick(){
+    n--;
+    if(n>0){$("clock").textContent="Live starts in "+n;arrivalTimer=setTimeout(tick,1000);}
+    else{goLive();}
+  }
+  arrivalTimer=setTimeout(tick,1000);
+}
+function goLive(){
+  mode="live"; sessionStart=new Date().toISOString();
+  events.push(snap("live_start"));
+  setButtons(true); paintRating();
+}
+
+function setRating(c){
+  if(mode!=="live"&&mode!=="ended")return;
+  if(rating===c)return;
+  rating=c; ratingSince=E.t;
+  events.push(snap("rating",{color:c}));
+  paintRating();
+}
+
+function finishLive(){
+  mode="ended"; E.t=Math.min(E.t,sc.live);
+  $("clock").textContent="Live segment finished";
+  $("endpanel").hidden=false; paintRating();
+  $("endpanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function confirmFinal(){
+  if(mode!=="ended"||!rating)return;
+  events.push(snap("confirm",{color:rating,unrealistic:$("unreal").checked,comment:$("comment").value}));
+  mode="done"; setButtons(false);
+  $("endpanel").hidden=true;
+  var rec={
+    version:VERSION,
+    scenario:{id:Object.keys(SCENARIOS).filter(function(k){return SCENARIOS[k]===sc;})[0],label:sc.label,seed:sc.seed,
+      baseline:sc.baseline,history_s:H_SPAN,live_s:sc.live,description:sc.desc,pauses:sc.pauses},
+    session_start:sessionStart,
+    final:{color:rating,unrealistic:$("unreal").checked,comment:$("comment").value},
+    events:events
+  };
+  $("json").value=JSON.stringify(rec,null,2);
+  $("summary").textContent="Final rating: "+rating.charAt(0).toUpperCase()+rating.slice(1)+". "+
+    events.filter(function(e){return e.type==="rating";}).length+" rating change(s) recorded.";
+  var tb=$("log").querySelector("tbody"); tb.innerHTML="";
+  events.forEach(function(e){
+    if(e.type==="live_start")return;
+    var tr=document.createElement("tr");
+    var label=e.type==="confirm"?"Confirmed: "+e.color:e.color;
+    [e.live_s.toFixed(1)+" s",label,e.rr_displayed.toFixed(0)+" /min",e.seesaw_offset.toFixed(2)].forEach(function(v){
+      var td=document.createElement("td");td.textContent=v;tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  $("results").hidden=false;
+  $("results").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+/* ---------- Drawing ---------- */
+var COL={};
+function readColors(){
+  var cs=getComputedStyle(document.documentElement);
+  ["ink","muted","line","surface","accent","scene","mattress","rail","seesaw"].forEach(function(k){COL[k]=cs.getPropertyValue("--"+k).trim();});
+}
+function fit(cv,hCss){
+  var dpr=window.devicePixelRatio||1,w=cv.clientWidth,W=Math.round(w*dpr),Hh=Math.round(hCss*dpr);
+  if(cv.width!==W||cv.height!==Hh){cv.width=W;cv.height=Hh;}
+  return {w:w,h:hCss,dpr:dpr};
+}
+function G(x,c,w){var z=(x-c)/w;return Math.exp(-z*z);}
+var SKIN="#a96f50",SKIN_D="#7d4e36",Y0=205;
+function topY(x,dc,da){
+  var h=30+18*G(x,330,110)+10*G(x,470,70);
+  var e=clamp(Math.min((x-232)/22,(545-x)/30),0,1);
+  h*=Math.sqrt(e);
+  h+=dc*26*G(x,320,70)+da*30*G(x,440,70);
+  return Y0-h;
+}
+function capsule(ctx,pts,w,fill,edge){
+  ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.strokeStyle=edge;ctx.lineWidth=w+3;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(var i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.stroke();
+  ctx.strokeStyle=fill;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(var j=1;j<pts.length;j++)ctx.lineTo(pts[j][0],pts[j][1]);ctx.stroke();
+}
+var VX=70,VY=100,VW=630,VH=150;
+function drawBaby(){
+  var cv=$("baby"),f=fit(cv,cv.clientWidth*VH/VW),ctx=cv.getContext("2d"),s=f.w*f.dpr/VW;
+  ctx.setTransform(s,0,0,s,-VX*s,-VY*s);
+  ctx.fillStyle=COL.scene;ctx.fillRect(VX-2,VY-2,VW+4,VH+4);
+  /* cot: back rail and slats */
+  ctx.fillStyle=COL.rail;
+  ctx.globalAlpha=0.55;
+  for(var sx=VX-10;sx<VX+VW+10;sx+=46)ctx.fillRect(sx,VY+12,6,Y0-VY-12);
+  ctx.globalAlpha=1;
+  ctx.fillRect(VX-4,VY+6,VW+8,8);
+  ctx.fillStyle=COL.mattress;
+  ctx.fillRect(VX-4,Y0,VW+8,33);
+  ctx.fillStyle=COL.rail;ctx.fillRect(VX-4,238,VW+8,12);
+
+  /* breathing: belly follows inhale, chest follows with a delay (see-saw = chest lags toward antiphase) */
+  var off=sc.off(E.t);
+  function wave(p){p=((p%1)+1)%1;return 0.5-0.5*Math.cos(2*Math.PI*p);}
+  var bd=wave(E.phase)*E.amp*E.blend, cd=wave(E.phase-off)*E.amp*E.blend;
+  var da=bd-0.5*E.blend, dc=cd-0.5*E.blend;
+
+  /* legs */
+  capsule(ctx,[[522,Y0-24],[585,Y0-54],[642,Y0-15]],24,SKIN,SKIN_D);
+  ctx.fillStyle=SKIN;ctx.strokeStyle=SKIN_D;ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(648,Y0-10,15,9,0.2,0,6.283);ctx.fill();ctx.stroke();
+
+  /* torso */
+  ctx.beginPath();ctx.moveTo(232,Y0);
+  for(var x=232;x<=545;x+=3)ctx.lineTo(x,topY(x,dc,da));
+  ctx.lineTo(545,Y0);ctx.closePath();
+  ctx.fillStyle=SKIN;ctx.fill();
+  ctx.strokeStyle=SKIN_D;ctx.lineWidth=2;ctx.beginPath();
+  for(var x2=232;x2<=545;x2+=3){if(x2===232)ctx.moveTo(x2,topY(x2,dc,da));else ctx.lineTo(x2,topY(x2,dc,da));}
+  ctx.stroke();
+
+  /* diaper */
+  ctx.fillStyle="#f1f4f5";ctx.strokeStyle="#b9c6c9";ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(522,Y0-19,40,22,0,0,6.283);ctx.fill();ctx.stroke();
+
+  /* arm */
+  capsule(ctx,[[296,Y0-30],[338,Y0-17],[384,Y0-27]],14,SKIN,SKIN_D);
+
+  /* head */
+  var hx=178,hy=Y0-40;
+  ctx.fillStyle=SKIN;ctx.strokeStyle=SKIN_D;ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(hx,hy,40,0,6.283);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(hx+36,hy+10,6,10,0,0,6.283);ctx.fill();ctx.stroke();
+  ctx.strokeStyle=SKIN_D;ctx.lineWidth=2.5;ctx.lineCap="round";
+  ctx.beginPath();ctx.arc(hx-14,hy-6,7,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  ctx.beginPath();ctx.arc(hx+12,hy-6,7,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  ctx.beginPath();ctx.arc(hx-1,hy+16,6,0.2*Math.PI,0.8*Math.PI);ctx.stroke();
+  ctx.fillStyle=SKIN_D;ctx.beginPath();ctx.arc(hx-1,hy+4,2.4,0,6.283);ctx.fill();
+
+  /* nasal prongs and tubing */
+  ctx.strokeStyle="#e9f1f3";ctx.lineWidth=3;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(hx-6,hy+7);ctx.lineTo(hx-6,hy+3);ctx.moveTo(hx+4,hy+7);ctx.lineTo(hx+4,hy+3);ctx.stroke();
+  ctx.strokeStyle="#9fb4ba";ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(hx-9,hy+9);ctx.lineTo(hx+7,hy+9);ctx.stroke();
+  function tube(path){
+    ctx.lineCap="round";ctx.strokeStyle="#8ea6ad";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(path[0],path[1]);ctx.bezierCurveTo(path[2],path[3],path[4],path[5],path[6],path[7]);ctx.stroke();
+    ctx.strokeStyle="#e9f1f3";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(path[0],path[1]);ctx.bezierCurveTo(path[2],path[3],path[4],path[5],path[6],path[7]);ctx.stroke();
+  }
+  tube([hx-10,hy+9, hx-34,hy+16, hx-44,hy+34, hx-70,Y0-5]);
+  tube([hx-70,Y0-5, hx-95,Y0-3, 90,Y0-10, 40,Y0-8]);
+}
+
+function drawTrace(){
+  var cv=$("trace"),f=fit(cv,208),ctx=cv.getContext("2d");
+  ctx.setTransform(f.dpr,0,0,f.dpr,0,0);
+  var W=f.w,L=42,R=W-12,T=10,B=140,pw=R-L;
+  ctx.clearRect(0,0,W,208);
+  ctx.font="12px 'Atkinson Hyperlegible',system-ui,sans-serif";
+  function Y(v){return B-(clamp(v,0,100)/100)*(B-T);}
+  var t0=E.t-H_SPAN;
+  function X(t){return L+(t-t0)/H_SPAN*pw;}
+  /* grid */
+  ctx.lineWidth=1;ctx.textAlign="right";ctx.textBaseline="middle";
+  for(var v=0;v<=100;v+=20){
+    ctx.strokeStyle=COL.line;ctx.globalAlpha=v===0?1:0.6;
+    ctx.beginPath();ctx.moveTo(L,Y(v)+0.5);ctx.lineTo(R,Y(v)+0.5);ctx.stroke();
+    ctx.globalAlpha=1;ctx.fillStyle=COL.muted;ctx.fillText(String(v),L-6,Y(v));
+  }
+  /* baseline */
+  ctx.setLineDash([5,4]);ctx.strokeStyle=COL.muted;ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(L,Y(sc.baseline));ctx.lineTo(R,Y(sc.baseline));ctx.stroke();ctx.setLineDash([]);
+  /* time labels */
+  ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle=COL.muted;
+  [[-8,"−8 min"],[-6,"−6"],[-4,"−4"],[-2,"−2"],[0,"now"]].forEach(function(a){
+    var x=X(E.t+a[0]*60);
+    if(a[0]===0)ctx.textAlign="right";else ctx.textAlign="center";
+    ctx.fillText(a[1],a[0]===-8?x+18:x,B+8);
+  });
+  /* rate line */
+  var S=E.samples;
+  ctx.strokeStyle=COL.ink;ctx.lineWidth=2;ctx.lineJoin="round";ctx.beginPath();
+  var started=false;
+  for(var i=0;i<S.length;i++){
+    if(S[i].t<t0-1)continue;
+    var x=X(S[i].t),y=Y(S[i].rr);
+    if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  var last=S[S.length-1];
+  if(last){
+    ctx.strokeStyle=COL.accent;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(R,T);ctx.lineTo(R,B);ctx.stroke();
+    ctx.fillStyle=COL.accent;ctx.beginPath();ctx.arc(R,Y(last.rr),4.5,0,6.283);ctx.fill();
+  }
+  /* see-saw strip */
+  ctx.textAlign="left";ctx.textBaseline="alphabetic";ctx.fillStyle=COL.muted;
+  ctx.fillText("Chest and belly out of sync",L,178);
+  var sy=184,sh=16;
+  ctx.fillStyle=COL.scene;ctx.fillRect(L,sy,pw,sh);
+  var cw=SAMPLE/H_SPAN*pw+1;
+  ctx.fillStyle=COL.seesaw;
+  for(var j=0;j<S.length;j++){
+    if(S[j].t<t0-1)continue;
+    var a=clamp(S[j].off/0.5,0,1);
+    if(a<=0.01)continue;
+    ctx.globalAlpha=0.12+0.88*a;
+    ctx.fillRect(X(S[j].t)-cw,sy,cw,sh);
+  }
+  ctx.globalAlpha=1;
+  ctx.strokeStyle=COL.line;ctx.lineWidth=1;ctx.strokeRect(L+0.5,sy+0.5,pw-1,sh-1);
+}
+
+/* ---------- Main loop ---------- */
+var lastNow=performance.now(),frames=0;
+function frame(now){
+  var dt=Math.min(0.1,(now-lastNow)/1000);lastNow=now;
+  if(mode==="live"){
+    acc+=dt;
+    while(acc>=STEP&&mode==="live"){
+      E.step(STEP);acc-=STEP;
+      if(E.t>=sc.live){finishLive();break;}
+    }
+    if(mode==="live"){
+      var left=Math.max(0,Math.ceil(sc.live-E.t));
+      $("clock").textContent="Live: "+left+" s left";
+    }
+  }
+  if(frames++%30===0)readColors();
+  drawBaby();drawTrace();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Wiring ---------- */
+var sel=$("preset");
+Object.keys(SCENARIOS).forEach(function(k){var o=document.createElement("option");o.value=k;o.textContent=SCENARIOS[k].label;sel.appendChild(o);});
+function checkDev(){$("devbar").hidden=(location.hash!=="#dev");}
+window.addEventListener("hashchange",checkDev);checkDev();
+sel.addEventListener("change",function(){reset(sel.value);});
+$("start").addEventListener("click",begin);
+document.querySelectorAll(".btn").forEach(function(b){b.addEventListener("click",function(){setRating(b.getAttribute("data-c"));});});
+$("confirm").addEventListener("click",confirmFinal);
+$("again").addEventListener("click",function(){reset(sel.value);window.scrollTo({top:0,behavior:"smooth"});});
+$("copy").addEventListener("click",function(){
+  var ta=$("json");ta.focus();ta.select();
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ta.value).then(function(){$("copy").textContent="Copied";},function(){document.execCommand("copy");$("copy").textContent="Copied";});}
+    else{document.execCommand("copy");$("copy").textContent="Copied";}
+  }catch(e){$("copy").textContent="Select and copy the text above";}
+});
+document.addEventListener("keydown",function(e){
+  var tag=(e.target&&e.target.tagName)||"";
+  if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SELECT")return;
+  if(e.key==="1")setRating("green");else if(e.key==="2")setRating("yellow");else if(e.key==="3")setRating("red");
+});
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener&&window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",readColors);
+
+readColors();
+reset("main");
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
